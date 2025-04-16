@@ -53,7 +53,6 @@ public:
     top();
     void process() {
         sm.process_event(e1{});
-        //sm.process_event(e2{});
         assert(sm.is(sml::X));
     }
 
