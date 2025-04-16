@@ -39,7 +39,6 @@ protected:
 
             const auto on_e2 = [](e2 const& event, base* instance) {
                 std::cout << "on_e2" << std::endl;
-                //instance->process_event();
                 };
 
             return make_transition_table(
