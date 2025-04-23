@@ -267,8 +267,15 @@ int main() {
 #include <cassert>
 #include <boost/sml.hpp>
 
+class base
+{
+public:
+    base() = default;
+    virtual ~base() = default;
+};
+
 template <typename Derived, typename EventVariant>
-class topdown {
+class topdown : public base {
 public:
     void process_event(const EventVariant& e) {
         bool reentrant_call = !events.empty();
@@ -339,8 +346,8 @@ private:
 };
 
 int main() {
-    top<> sm;
-    sm.process();
+    top<> instance;
+    instance.process();
 }
 
 
