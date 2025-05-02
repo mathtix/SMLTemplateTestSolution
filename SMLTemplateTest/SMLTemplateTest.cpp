@@ -360,24 +360,44 @@ int main() {
 #include <cassert>
 #include <boost/sml.hpp>
 
-template <typename StateMachine, typename EventVariant>
+template <class TSM>
+class state_name_visitor {
+public:
+    explicit state_name_visitor(const TSM& sm) : sm_{ sm } {}
+
+    template <class TSub>
+    void operator()(boost::sml::aux::string<boost::sml::sm<TSub>>) const {
+        std::cout << boost::sml::aux::get_type_name<TSub>() << ':';
+        sm_.template visit_current_states<boost::sml::aux::identity<TSub>>(*this);
+    }
+
+    template <class TState>
+    void operator()(TState state) const {
+        std::cout << state.c_str() << '\n';
+    }
+
+private:
+    const TSM& sm_;
+};
+
+template <typename TStateMachine, typename TEventVariant>
 struct state_machine_shim
 {
 public:
-    void process_event(const EventVariant& e) {
+    void process_event(const TEventVariant& e) {
         bool reentrant_call = !events.empty();
         events.push(e);
         if (!reentrant_call) {
             while (!events.empty()) {
                 auto ev = events.front();
-                static_cast<StateMachine*>(this)->dispatch_event(ev);
+                static_cast<TStateMachine*>(this)->dispatch_event(ev);
                 events.pop();
             }
         }
     }
 
 private:
-    std::queue<EventVariant> events;
+    std::queue<TEventVariant> events;
 };
 
 class state_machine_user
@@ -431,6 +451,10 @@ public:
 
     void process() {
         namespace sml = boost::sml;
+        const auto state_name = state_name_visitor<decltype(instance.machine)>{ instance.machine };
+
+        instance.machine.visit_current_states(state_name);
+
         assert(instance.machine.is(sml::state<idle>));
         instance.process_event(e1{});
         assert(instance.machine.is(sml::X));
