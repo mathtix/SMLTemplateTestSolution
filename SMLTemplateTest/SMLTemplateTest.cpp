@@ -1,6 +1,6 @@
+﻿
 
-
-#define EXAMPLE_FOUR 1
+#define EXAMPLE_FIVE 1
 
 #ifdef EXAMPLE_ONE
 #include <boost/sml.hpp>
@@ -352,3 +352,88 @@ int main() {
 
 
 #endif // EXAMPLE_FOUR
+
+#ifdef EXAMPLE_FIVE
+#include <variant>
+#include <queue>
+#include <iostream>
+#include <cassert>
+#include <boost/sml.hpp>
+
+template <typename Derived, typename EventVariant>
+struct topdown{
+public:
+    void process_event(const EventVariant& e) {
+        bool reentrant_call = !events.empty();
+        events.push(e);
+        if (!reentrant_call) {
+            while (!events.empty()) {
+                auto ev = events.front();
+                static_cast<Derived*>(this)->dispatch_event(ev);
+                events.pop();
+            }
+        }
+    }
+
+private:
+    std::queue<EventVariant> events;
+};
+
+struct TD {};
+
+template <typename T = TD>
+struct top;
+
+struct e1 {};
+struct e2 {};
+
+using event_variant = std::variant<e1, e2>;
+
+template <typename T>
+struct top : public topdown<top<T>, event_variant> {
+    using base = topdown<top<T>, event_variant>;
+
+    struct idle {};
+    struct running {};
+
+    struct nested {
+        auto operator()() const {
+            namespace sml = boost::sml;
+            return sml::make_transition_table(
+                *sml::state<idle> + sml::event<e1> / [](const e1&, base* self) {
+                    std::cout << "on_e1\n";
+                    self->process_event(e2{});
+                } = sml::state<running>,
+
+                sml::state<running> + sml::event<e2> / [](const e2&, base* self) {
+                    std::cout << "on_e2\n";
+                } = sml::X
+            );
+        }
+    };
+
+public:
+    top() : machine(static_cast<base*>(this)) {}
+
+    void process() {
+        this->process_event(e1{});
+        assert(machine.is(boost::sml::X));
+    }
+
+    void dispatch_event(event_variant& ev) {
+        std::visit([this](auto&& e) {
+            machine.process_event(e);
+            }, ev);
+    }
+
+private:
+    boost::sml::sm<nested> machine;
+};
+
+int main() {
+    top<> instance;
+    instance.process();
+}
+
+
+#endif // EXAMPLE_FIVE
