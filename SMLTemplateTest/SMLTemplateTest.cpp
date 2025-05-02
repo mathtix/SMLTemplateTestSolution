@@ -380,60 +380,63 @@ private:
     std::queue<EventVariant> events;
 };
 
-////struct TD {};
+class state_machine_user
+{
+private:
+    struct e1 {};
+    struct e2 {};
 
-////template <typename T = struct TD>
-////struct state_machine;
+    using event_variant = std::variant<e1, e2>;
 
-struct e1 {};
-struct e2 {};
+    template <typename T = struct TD>
+    struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
+        using base = state_machine_shim<state_machine<T>, event_variant>;
 
-using event_variant = std::variant<e1, e2>;
+        struct idle {};
+        struct running {};
 
-template <typename T = struct TD>
-struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
-    using base = state_machine_shim<state_machine<T>, event_variant>;
+        struct nested {
+            auto operator()() const {
+                namespace sml = boost::sml;
+                return sml::make_transition_table(
+                    *sml::state<idle> +sml::event<e1> / [](const e1&, base* self) {
+                        std::cout << "on_e1\n";
+                        self->process_event(e2{});
+                    } = sml::state<running>,
 
-    struct idle {};
-    struct running {};
+                    sml::state<running> +sml::event<e2> / [](const e2&, base* self) {
+                        std::cout << "on_e2\n";
+                        } = sml::X
+                        );
+            }
+        };
 
-    struct nested {
-        auto operator()() const {
-            namespace sml = boost::sml;
-            return sml::make_transition_table(
-                *sml::state<idle> + sml::event<e1> / [](const e1&, base* self) {
-                    std::cout << "on_e1\n";
-                    self->process_event(e2{});
-                } = sml::state<running>,
+    public:
+        state_machine() : machine(static_cast<base*>(this)) {}
 
-                sml::state<running> + sml::event<e2> / [](const e2&, base* self) {
-                    std::cout << "on_e2\n";
-                } = sml::X
-            );
+        void dispatch_event(event_variant& ev) {
+            std::visit([this](auto&& e) {
+                machine.process_event(e);
+                }, ev);
         }
+
+        boost::sml::sm<nested> machine;
     };
 
+    state_machine<> instance;
+
 public:
-    state_machine() : machine(static_cast<base*>(this)) {}
 
     void process() {
-        this->process_event(e1{});
-        assert(machine.is(boost::sml::X));
+        instance.process_event(e1{});
+        assert(instance.machine.is(boost::sml::X));
     }
 
-    void dispatch_event(event_variant& ev) {
-        std::visit([this](auto&& e) {
-            machine.process_event(e);
-            }, ev);
-    }
-
-private:
-    boost::sml::sm<nested> machine;
 };
 
 int main() {
-    state_machine<> instance;
-    instance.process();
+    state_machine_user user;
+    user.process();
 }
 
 #endif // EXAMPLE_FIVE
