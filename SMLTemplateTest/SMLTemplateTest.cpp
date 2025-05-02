@@ -360,7 +360,7 @@ int main() {
 #include <cassert>
 #include <boost/sml.hpp>
 
-template <typename Derived, typename EventVariant>
+template <typename StateMachine, typename EventVariant>
 struct state_machine_shim
 {
 public:
@@ -370,7 +370,7 @@ public:
         if (!reentrant_call) {
             while (!events.empty()) {
                 auto ev = events.front();
-                static_cast<Derived*>(this)->dispatch_event(ev);
+                static_cast<StateMachine*>(this)->dispatch_event(ev);
                 events.pop();
             }
         }
@@ -435,6 +435,5 @@ int main() {
     state_machine<> instance;
     instance.process();
 }
-
 
 #endif // EXAMPLE_FIVE
