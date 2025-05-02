@@ -380,17 +380,17 @@ private:
     std::queue<EventVariant> events;
 };
 
-struct TD {};
+////struct TD {};
 
-template <typename T = TD>
-struct state_machine;
+////template <typename T = struct TD>
+////struct state_machine;
 
 struct e1 {};
 struct e2 {};
 
 using event_variant = std::variant<e1, e2>;
 
-template <typename T>
+template <typename T = struct TD>
 struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
     using base = state_machine_shim<state_machine<T>, event_variant>;
 
