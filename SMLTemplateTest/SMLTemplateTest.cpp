@@ -383,17 +383,19 @@ private:
 class state_machine_user
 {
 private:
+    /// Events
     struct e1 {};
     struct e2 {};
 
     using event_variant = std::variant<e1, e2>;
 
+    /// States
+    struct idle {};
+    struct running {};
+
     template <typename T = struct TD>
     struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
         using base = state_machine_shim<state_machine<T>, event_variant>;
-
-        struct idle {};
-        struct running {};
 
         struct tables {
             auto operator()() const {
@@ -428,8 +430,10 @@ private:
 public:
 
     void process() {
+        namespace sml = boost::sml;
+        assert(instance.machine.is(sml::state<idle>));
         instance.process_event(e1{});
-        assert(instance.machine.is(boost::sml::X));
+        assert(instance.machine.is(sml::X));
     }
 
 };
