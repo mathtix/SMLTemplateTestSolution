@@ -373,7 +373,8 @@ public:
 
     template <class TState>
     void operator()(TState state) const {
-        std::cout << state.c_str() << '\n';
+        //std::cout << state.c_str() << '\n';t
+        std::cout << boost::sml::aux::get_type_name<TState>() << '\n';
     }
 
 private:
@@ -418,7 +419,7 @@ private:
         using base = state_machine_shim<state_machine<T>, event_variant>;
 
         struct tables {
-            auto operator()() const {
+            constexpr auto operator()() const {
                 namespace sml = boost::sml;
                 return sml::make_transition_table(
                     *sml::state<idle> + sml::event<e1> / [](const e1&, base* self) {
@@ -439,7 +440,7 @@ private:
         void dispatch_event(event_variant& ev) {
             std::visit([this](auto&& e) {
                 machine.process_event(e);
-                }, ev);
+                }, std::move(ev));
         }
 
         boost::sml::sm<tables> machine;
