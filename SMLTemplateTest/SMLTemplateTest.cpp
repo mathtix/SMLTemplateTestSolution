@@ -399,15 +399,15 @@ private:
             auto operator()() const {
                 namespace sml = boost::sml;
                 return sml::make_transition_table(
-                    *sml::state<idle> +sml::event<e1> / [](const e1&, base* self) {
+                    *sml::state<idle> + sml::event<e1> / [](const e1&, base* self) {
                         std::cout << "on_e1\n";
                         self->process_event(e2{});
                     } = sml::state<running>,
 
-                    sml::state<running> +sml::event<e2> / [](const e2&, base* self) {
+                    sml::state<running> + sml::event<e2> / [](const e2&, base* self) {
                         std::cout << "on_e2\n";
-                        } = sml::X
-                        );
+                    } = sml::X
+                );
             }
         };
 
