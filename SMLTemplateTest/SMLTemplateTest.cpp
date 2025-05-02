@@ -1,6 +1,6 @@
 ﻿
 
-#define EXAMPLE_FIVE 1
+#define EXAMPLE_SIX 1
 
 #ifdef EXAMPLE_ONE
 #include <boost/sml.hpp>
@@ -469,3 +469,122 @@ int main() {
 }
 
 #endif // EXAMPLE_FIVE
+
+#ifdef EXAMPLE_SIX
+#include <variant>
+#include <queue>
+#include <iostream>
+#include <cassert>
+#include <boost/sml.hpp>
+
+namespace sml = boost::sml;
+
+// === State Visitor ===
+template <class TSM>
+class state_name_visitor {
+public:
+    explicit state_name_visitor(const TSM& sm) : sm_{ sm } {}
+
+    template <class TSub>
+    void operator()(sml::aux::string<sml::sm<TSub>>) const {
+        std::cout << sml::aux::get_type_name<TSub>() << ':';
+        sm_.template visit_current_states<sml::aux::identity<TSub>>(*this);
+    }
+
+    template <class TState>
+    void operator()(const TState& state) const {
+        std::cout << state.c_str() << '\n'; 
+        /////std::cout << sml::aux::get_type_name<TState>() << '\n';
+    }
+
+private:
+    const TSM& sm_;
+};
+
+// === FSM Reentrancy Shim ===
+template <typename TStateMachine, typename TEventVariant>
+struct state_machine_shim {
+public:
+    void process_event(const TEventVariant& e) {
+        bool reentrant_call = !events_.empty();
+        events_.push(e);
+        if (!reentrant_call) {
+            while (!events_.empty()) {
+                auto ev = std::move(events_.front());
+                static_cast<TStateMachine*>(this)->dispatch_event(ev);
+                events_.pop();
+            }
+        }
+    }
+
+protected:
+    std::queue<TEventVariant> events_;
+};
+
+// === User FSM Wrapper ===
+class state_machine_user {
+private:
+    // === Events ===
+    struct e1 {};
+    struct e2 {};
+
+    using event_variant = std::variant<e1, e2>;
+
+    // === States ===
+    struct idle {};
+    struct running {};
+
+    // === State Machine ===
+    template <typename T = struct tag>
+    struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
+        using base = state_machine_shim<state_machine<T>, event_variant>;
+
+        struct tables {
+            constexpr auto operator()() const {
+                return sml::make_transition_table(
+                    *sml::state<idle> + sml::event<e1> / [](const e1& [[maybe_unused]], base* self) {
+                        std::cout << "on_e1\n";
+                        self->process_event(e2{});
+                    } = sml::state<running>,
+
+                    sml::state<running> + sml::event<e2> / [](const e2 & [[maybe_unused]], base* [[maybe_unused]] ) {
+                        std::cout << "on_e2\n";
+                    } = sml::X
+               );
+            }
+        };
+
+        state_machine() : machine_{ static_cast<base*>(this) } {}
+
+        void dispatch_event(event_variant& ev) {
+            std::visit([this](auto&& e) {
+                machine_.process_event(std::forward<decltype(e)>(e));
+                }, std::move(ev));
+        }
+
+        [[nodiscard]] bool is_terminal() const {
+            return machine_.is(sml::X);
+        }
+
+        sml::sm<tables> machine_;
+    };
+
+    state_machine<> instance_;
+
+public:
+    void process() {
+        const auto visitor = state_name_visitor{ instance_.machine_ };
+        instance_.machine_.visit_current_states(visitor);
+
+        assert(instance_.machine_.is(sml::state<idle>));
+        instance_.process_event(e1{});
+        assert(instance_.is_terminal());
+    }
+};
+
+int main() {
+    state_machine_user user;
+    user.process();
+}
+
+#endif // EXAMPLE_SIX
