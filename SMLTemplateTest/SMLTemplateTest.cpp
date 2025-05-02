@@ -395,7 +395,7 @@ private:
         struct idle {};
         struct running {};
 
-        struct nested {
+        struct tables {
             auto operator()() const {
                 namespace sml = boost::sml;
                 return sml::make_transition_table(
@@ -420,7 +420,7 @@ private:
                 }, ev);
         }
 
-        boost::sml::sm<nested> machine;
+        boost::sml::sm<tables> machine;
     };
 
     state_machine<> instance;
