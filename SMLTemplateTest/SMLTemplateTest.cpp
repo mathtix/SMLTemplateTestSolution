@@ -361,7 +361,8 @@ int main() {
 #include <boost/sml.hpp>
 
 template <typename Derived, typename EventVariant>
-struct topdown{
+struct state_machine_shim
+{
 public:
     void process_event(const EventVariant& e) {
         bool reentrant_call = !events.empty();
@@ -382,7 +383,7 @@ private:
 struct TD {};
 
 template <typename T = TD>
-struct top;
+struct state_machine;
 
 struct e1 {};
 struct e2 {};
@@ -390,8 +391,8 @@ struct e2 {};
 using event_variant = std::variant<e1, e2>;
 
 template <typename T>
-struct top : public topdown<top<T>, event_variant> {
-    using base = topdown<top<T>, event_variant>;
+struct state_machine : public state_machine_shim<state_machine<T>, event_variant> {
+    using base = state_machine_shim<state_machine<T>, event_variant>;
 
     struct idle {};
     struct running {};
@@ -413,7 +414,7 @@ struct top : public topdown<top<T>, event_variant> {
     };
 
 public:
-    top() : machine(static_cast<base*>(this)) {}
+    state_machine() : machine(static_cast<base*>(this)) {}
 
     void process() {
         this->process_event(e1{});
@@ -431,7 +432,7 @@ private:
 };
 
 int main() {
-    top<> instance;
+    state_machine<> instance;
     instance.process();
 }
 
